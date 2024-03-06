@@ -1,5 +1,7 @@
 {
-  "acknowledged-issue-numbers": [21902],
+  "acknowledged-issue-numbers": [
+    21902
+  ],
   "availability-zones:account=862440218923:region=ap-southeast-2": [
     "ap-southeast-2a",
     "ap-southeast-2b",
@@ -38,5 +40,11 @@
     "eu-central-1a",
     "eu-central-1b",
     "eu-central-1c"
+  ],
+  "availability-zones:account=590183688612:region=us-west-2": [
+    "us-west-2a",
+    "us-west-2b",
+    "us-west-2c",
+    "us-west-2d"
   ]
 }

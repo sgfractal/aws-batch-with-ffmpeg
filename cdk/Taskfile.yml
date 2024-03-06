@@ -28,14 +28,14 @@ tasks:
     desc: Synth cdk stack
     deps: [build-lambda]
     cmds:
-      - cdk synth --context batch-ffmpeg:lustre-fs:enable=true
+      - cdk synth --context batch-ffmpeg:lustre-fs:enable=false
 
   deploy:
     desc: deploy all available stacks
     deps: [build-lambda]
     cmds:
       #- cdk bootstrap
-      - cdk deploy --all --require-approval never --context batch-ffmpeg:lustre-fs:enable=true
+      - cdk deploy --all --require-approval never --context batch-ffmpeg:lustre-fs:enable=false
 
   destroy-regions:
     #deps: [build-lambda]

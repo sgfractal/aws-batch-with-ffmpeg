@@ -273,6 +273,10 @@ class BatchStack(Stack):
             "Ref::output_url",
             "--name",
             "Ref::name",
+            "--stream_address",  # Added parameter
+            "Ref::stream_address",
+            "--duration",  # Added parameter
+            "Ref::duration",
         ]
         ffmpeg_python_script_default_values = {
             "global_options": "null",
@@ -281,6 +285,8 @@ class BatchStack(Stack):
             "output_file_options": "null",
             "output_url": "null",
             "name": "null",
+            "stream_address": "null",  # Default value for stream_address
+            "duration": "null",  # Default value for duration
         }
 
         # AWS Batch : Job Definition > Container

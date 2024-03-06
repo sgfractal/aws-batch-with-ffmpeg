@@ -34,8 +34,11 @@ logging.getLogger("aws_xray_sdk").setLevel(LOGLEVEL)
 @click.option("--output_file_options", help="ffmpeg output file options", type=str)
 @click.option("--output_url", help="Amazon S3 output url", type=str)
 @click.option("--name", help="Optional name to identify cmd in logs", type=str)
+@click.option("--duration", help="Duration of the recording in seconds", type=int)  # Default to 1 hour
+@click.option("--stream_address", help="livestream address", type=str)  
+
 def main(
-    global_options, input_file_options, input_url, output_file_options, output_url, name
+    global_options, input_file_options, input_url, output_file_options, output_url, name, duration, stream_address,
 ):
     """Python CLI for FFMPEG with Amazon S3 download/upload and video quality
     metrics."""
@@ -45,6 +48,11 @@ def main(
     ssm_client = boto3.client("ssm", region_name=aws_region)
     s3_client = boto3.client("s3", region_name=aws_region)
 
+      # Handling livestream recording if stream_address is provided
+    if stream_address:
+        record_livestream(stream_address, duration, name, global_options, output_file_options, s3_client, output_url)
+        return  # Exit after processing the livestream
+
     # Arguments validation
     logging.info("global_options: %s", global_options)
     logging.info("input_file_options : %s", input_file_options)
@@ -52,6 +60,8 @@ def main(
     logging.info("output_file_options : %s", output_file_options)
     logging.info("output_url : %s", output_url)
     logging.info("name : %s", name)
+    logging.info("duration : %s", duration)
+    logging.info("stream_address : %s", stream_address)
 
     if global_options == "null":
         global_options = None
@@ -65,6 +75,10 @@ def main(
         output_url = None
     if name == "null":
         name = None
+    if duration == "null":
+        duration = None
+    if stream_address == "null":
+        stream_address = None
 
     # Get env variables
     aws_batch_job_id = os.getenv("AWS_BATCH_JOB_ID", "local")
@@ -103,6 +117,8 @@ def main(
     segment.put_annotation("output_file_options", output_file_options)
     segment.put_annotation("output_url", output_url)
     segment.put_annotation("name", name)
+    segment.put_annotation("duration", duration)
+    segment.put_annotation("stream_address", stream_address)
     segment.put_annotation("AWS_BATCH_JOB_ID", aws_batch_job_id)
     segment.put_annotation("AWS_BATCH_JQ_NAME", aws_batch_jq_name)
     segment.put_annotation("AWS_BATCH_CE_NAME", aws_batch_ce_name)
@@ -115,7 +131,7 @@ def main(
         fsx_lustre_mount_point=fsx_lustre_mount_point,
     )
 
-    # ffmpeg command creation
+   # ffmpeg command creation
     command_list = ["ffmpeg"]
     if global_options:
         command_list = command_list + shlex.split(global_options)
@@ -218,6 +234,33 @@ def main(
     # Clean
     xray_recorder.end_segment()
     sys.exit(0)
+
+def record_livestream(stream_address, duration, name, global_options, output_file_options, s3_client, output_url):
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        local_output_path = os.path.join(tmpdirname, name)
+        
+        # Ensure there is a default duration of 2 hours (7200 seconds) if none is provided
+        duration_option = f"-t {duration if duration else 7200}"
+        command = f"ffmpeg {global_options} -i {stream_address} {duration_option} {output_file_options} {local_output_path}"
+        command_list = shlex.split(command)
+        
+        # Executing ffmpeg command
+        try:
+            subprocess.run(command_list, check=True)
+            logging.info(f"Livestream saved to {local_output_path}")
+        except subprocess.CalledProcessError as e:
+            logging.error(f"Failed to save livestream: {e}")
+            return
+        
+        # Extract bucket and key from output_url
+        s3_output = S3Url(output_url)
+        
+        # Upload the recorded file to S3
+        try:
+            s3_client.upload_file(local_output_path, s3_output.bucket, s3_output.key)
+            logging.info(f"File uploaded to S3: {output_url}")
+        except Exception as e:
+            logging.error(f"Failed to upload file to S3: {e}")
 
 
 def prepare_assets(
